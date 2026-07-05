@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Working Memory Experiment</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f3; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+  #app { width: 100%; display: flex; justify-content: center; }
+  .card { background: #ffffff; border: 1px solid #e0dfd8; border-radius: 12px; padding: 2rem; width: 100%; max-width: 580px; }
+  h2 { font-size: 18px; font-weight: 500; color: #1a1a18; margin-bottom: 1rem; }
+  p { font-size: 15px; color: #5a5a56; line-height: 1.7; margin-bottom: 0.75rem; }
+  .phase-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: #9a9a94; margin-bottom: 0.75rem; }
+  .btn { background: transparent; border: 1px solid #c0bfb8; border-radius: 8px; padding: 10px 24px; font-size: 15px; color: #1a1a18; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .btn:hover { background: #f0efe8; }
+  .btn-primary { background: #1a1a18; color: #ffffff; border-color: #1a1a18; }
+  .btn-primary:hover { opacity: 0.85; background: #1a1a18; }
+  .btn:disabled { opacity: 0.32; cursor: not-allowed; pointer-events: none; }
+  .timer-bar-wrap { background: #f0efe8; border-radius: 4px; height: 5px; width: 100%; overflow: hidden; margin: 4px 0 1rem; }
+  .timer-bar { height: 5px; border-radius: 4px; background: #1a1a18; transition: width 0.25s linear; }
+  .timer-label { font-size: 12px; color: #9a9a94; text-align: right; }
+  .digit-stage { display: flex; align-items: center; justify-content: center; min-height: 120px; }
+  .digit-big { font-size: 72px; font-weight: 500; font-family: 'Courier New', monospace; color: #1a1a18; line-height: 1; transition: opacity 0.1s; }
+  .digit-dots { display: flex; gap: 8px; justify-content: center; margin: 1rem 0 0.5rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #d0cfc8; transition: background 0.2s; }
+  .dot.shown { background: #8a8a84; }
+  .dot.current { background: #1a1a18; }
+  input[type=text] { width: 100%; font-size: 22px; font-family: 'Courier New', monospace; letter-spacing: 0.18em; text-align: center; padding: 12px; border: 1px solid #c0bfb8; border-radius: 8px; background: #f5f5f3; color: #1a1a18; margin: 0.5rem 0 0.25rem; }
+  input[type=text]:focus { outline: none; box-shadow: 0 0 0 2px #c0bfb8; }
+  textarea { width: 100%; font-size: 14px; font-family: system-ui, -apple-system, sans-serif; padding: 10px 12px; border: 1px solid #c0bfb8; border-radius: 8px; background: #f5f5f3; color: #1a1a18; line-height: 1.6; resize: vertical; min-height: 80px; margin: 0.5rem 0; }
+  textarea:focus { outline: none; box-shadow: 0 0 0 2px #c0bfb8; }
+  .char-hint { font-size: 12px; color: #9a9a94; text-align: right; margin-bottom: 1rem; }
+  .reinforce-box { border-radius: 8px; padding: 1.25rem 1.5rem; margin: 1rem 0; font-size: 15px; line-height: 1.7; }
+  .reinforce-low  { background: #fcebeb; color: #a32d2d; }
+  .reinforce-mid  { background: #faeeda; color: #854f0b; }
+  .reinforce-high { background: #eaf3de; color: #3b6d11; }
+  .score-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 0.5rem 0; }
+  .score-table th { text-align: left; font-weight: 500; color: #1a1a18; padding: 8px 0; border-bottom: 1px solid #c0bfb8; font-size: 13px; }
+  .score-table td { padding: 7px 0; border-bottom: 1px solid #e0dfd8; color: #5a5a56; font-size: 13px; }
+  .score-table td:last-child { text-align: right; font-family: 'Courier New', monospace; font-weight: 500; color: #1a1a18; }
+  .summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 1rem 0; }
+  .chip { background: #f5f5f3; border-radius: 8px; padding: 12px; text-align: center; }
+  .chip .val { font-size: 20px; font-weight: 500; color: #1a1a18; font-family: 'Courier New', monospace; }
+  .chip .lbl { font-size: 11px; color: #9a9a94; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.07em; }
+  .group-badge { display: inline-block; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 8px; margin-bottom: 1rem; }
+  .badge-a { background: #fcebeb; color: #a32d2d; }
+  .badge-b { background: #faeeda; color: #854f0b; }
+  .badge-c { background: #eaf3de; color: #3b6d11; }
+  .badge-d { background: #ebebfc; color: #2d2da3; }
+  .q-label { font-size: 13px; font-weight: 500; color: #1a1a18; margin: 1.1rem 0 0.35rem; }
+  .opt-row { display: flex; gap: 8px; margin-bottom: 0.25rem; flex-wrap: wrap; }
+  .opt-btn {
+    font-size: 13px; padding: 6px 14px;
+    border: 1px solid #c0bfb8; border-radius: 8px;
+    background: transparent; color: #5a5a56;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .opt-btn:hover { background: #dce4f0; border-color: #8899cc; color: #1a2a4a; }
+  .opt-btn.selected { background: #1a2a4a; color: #ffffff; border-color: #1a2a4a; }
+  .scale-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0.25rem; }
+  .scale-btn {
+    width: 40px; height: 40px; border-radius: 8px;
+    border: 1px solid #c0bfb8; background: transparent;
+    font-size: 14px; font-weight: 500; color: #1a1a18;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .scale-btn:hover { background: #dce4f0; border-color: #8899cc; color: #1a2a4a; }
+  .scale-btn.selected { background: #1a2a4a; color: #ffffff; border-color: #1a2a4a; }
+  .scale-ends { display: flex; justify-content: space-between; font-size: 11px; color: #9a9a94; margin-bottom: 0.75rem; }
+  .divider { height: 1px; background: #e0dfd8; margin: 1.25rem 0; }
+  .instruction-box { background: #f5f5f3; border-radius: 8px; padding: 1.25rem; margin: 1rem 0; font-size: 15px; line-height: 1.7; color: #1a1a18; }
+</style>
+</head>
+<body>
+<div id="app"><div class="card" id="screen"></div></div>
+<script>
+let state = {
+  phase: 'menu',
+  group: null,
+  trial: 0,
+  sequence: [],
+  results: [],
+  timerInterval: null,
+  digitIdx: 0,
+  lastN: null,
+  q1Text: '',
+  q2Sel: null,
+  q3Sel: null,
+  q4Sel: null,
+  q5Sel: null,
+  q6Sel: null,
+  q6Text: ''
+};
+
+const GROUP_NAMES = { A: 'Group A', B: 'Group B', C: 'Group C', D: 'Group D' };
+
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randomGroup() { const g = ['A','B','C','D']; return g[Math.floor(Math.random()*4)]; }
+
+function genSequence() {
+  const len = 8 + Math.floor(Math.random() * 3);
+  return Array.from({length: len}, () => Math.floor(Math.random() * 10));
+}
+
+// Longest contiguous run of digits that matches anywhere between the
+// original sequence and the response — NOT restricted to the same index.
+// This is the classic "longest common substring" problem (allows the
+// matching run to start at different positions in each string).
+// EXCEPTION: a match of length 1 is only counted if that single digit
+// occurs at the SAME index in both strings — this avoids crediting a
+// trivial single-digit coincidence that lines up purely by chance.
+function longestContiguous(orig, resp) {
+  const a = orig.map(String);
+  const b = resp.map(String);
+  const n = a.length, m = b.length;
+  let best = 0, bestEndA = -1, bestEndB = -1;
+  let prevRow = new Array(m + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    const currRow = new Array(m + 1).fill(0);
+    for (let j = 1; j <= m; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        currRow[j] = prevRow[j - 1] + 1;
+        if (currRow[j] > best) { best = currRow[j]; bestEndA = i; bestEndB = j; }
+      } else {
+        currRow[j] = 0;
+      }
+    }
+    prevRow = currRow;
+  }
+  if (best === 1) {
+    const startA = bestEndA - 1;
+    const startB = bestEndB - 1;
+    if (startA !== startB) return 0;
+  }
+  return best;
+}
+
+function getReinforcement(group, lastN) {
+  let n;
+  if (group === 'A') {
+    // Strictly decreasing. Range 45–60, but must be < lastN if we have one.
+    const max = lastN !== null ? Math.min(59, lastN - 1) : 59;
+    const min = 45;
+    n = max >= min ? rand(min, max) : min; // clamp gracefully at floor
+    return { cls: 'reinforce-low',  n, text: `You did better than ${n}% of people who participated in this experiment. You performed below average comparatively.` };
+  } else if (group === 'B') {
+    // Stays within ±2 of lastN. Range 65–80.
+    const lo = lastN !== null ? Math.max(65, lastN - 2) : 65;
+    const hi = lastN !== null ? Math.min(80, lastN + 2) : 80;
+    n = rand(lo, hi);
+    return { cls: 'reinforce-mid',  n, text: `You did better than ${n}% of people who participated in this experiment. You performed average comparatively.` };
+  } else {
+    // Strictly increasing. Range 85–95, but must be > lastN if we have one.
+    const min = lastN !== null ? Math.max(86, lastN + 1) : 86;
+    const max = 95;
+    n = min <= max ? rand(min, max) : max; // clamp gracefully at ceiling
+    return { cls: 'reinforce-high', n, text: `You did better than ${n}% of people who participated in this experiment. You performed above average comparatively.` };
+  }
+}
+
+function clearTimer() {
+  if (state.timerInterval) { clearInterval(state.timerInterval); state.timerInterval = null; }
+}
+
+function render() {
+  clearTimer();
+  const s = document.getElementById('screen');
+  const p = state.phase;
+
+  // ── MENU ──────────────────────────────────────────────────────────────────
+  if (p === 'menu') {
+    s.innerHTML = `
+      <div class="phase-label">Working memory experiment</div>
+      <h2>Welcome</h2>
+      <p>This experiment involves a series of short memory tests. You will be shown sequences of digits and asked to recall them immediately after.</p>
+      <p style="font-size:13px;color:#9a9a94;">7 trials · approximately 3–4 minutes</p>
+      <button class="btn btn-primary" style="margin-top:0.5rem" onclick="doBegin()">Begin</button>
+    `;
+  }
+
+  // ── INSTRUCTION ───────────────────────────────────────────────────────────
+  else if (p === 'instruction') {
+    let sec = 10;
+    s.innerHTML = `
+      <div class="phase-label">Instructions</div>
+      <h2>Before you start</h2>
+      <div class="instruction-box">
+        You will do a series of tests that involve working memory. Please try to do them to the best of your ability.
+      </div>
+      <div class="timer-label" id="tlabel">Starting in ${sec}s…</div>
+      <div class="timer-bar-wrap"><div class="timer-bar" id="tbar" style="width:100%"></div></div>
+    `;
+    state.timerInterval = setInterval(() => {
+      sec--;
+      const lbl = document.getElementById('tlabel'), bar = document.getElementById('tbar');
+      if (lbl) lbl.textContent = sec > 0 ? `Starting in ${sec}s…` : 'Starting…';
+      if (bar) bar.style.width = (sec / 10 * 100) + '%';
+      if (sec <= 0) { clearTimer(); startNextTrial(); }
+    }, 1000);
+  }
+
+  // ── MEMORISE ──────────────────────────────────────────────────────────────
+  else if (p === 'memorize') {
+    const seq = state.sequence;
+    const MS_PER_DIGIT = 800; // 0.8 seconds per digit
+    state.digitIdx = 0;
+    const dotsHtml = seq.map((_, i) => `<div class="dot" id="dot${i}"></div>`).join('');
+    s.innerHTML = `
+      <div class="phase-label">Trial ${state.trial + 1} of 7 — memorise</div>
+      <h2>Watch the sequence</h2>
+      <div class="digit-stage"><div class="digit-big" id="digitshow" style="opacity:0">·</div></div>
+      <div class="digit-dots">${dotsHtml}</div>
+      <p style="font-size:13px;color:#9a9a94;text-align:center;">Each digit is shown one at a time.</p>
+    `;
+    function showDigit(idx) {
+      const el = document.getElementById('digitshow');
+      const dot = document.getElementById('dot' + idx);
+      if (!el) return;
+      el.style.opacity = '0';
+      setTimeout(() => {
+        if (!document.getElementById('digitshow')) return;
+        el.textContent = seq[idx];
+        el.style.opacity = '1';
+        if (dot) dot.className = 'dot current';
+        if (idx > 0) { const prev = document.getElementById('dot' + (idx - 1)); if (prev) prev.className = 'dot shown'; }
+      }, 80);
+    }
+    setTimeout(() => showDigit(0), 150);
+    state.timerInterval = setInterval(() => {
+      state.digitIdx++;
+      if (state.digitIdx < seq.length) {
+        showDigit(state.digitIdx);
+      } else {
+        clearTimer();
+        const el = document.getElementById('digitshow');
+        if (el) el.style.opacity = '0';
+        const lastDot = document.getElementById('dot' + (seq.length - 1));
+        if (lastDot) lastDot.className = 'dot shown';
+        setTimeout(() => { state.phase = 'recall'; render(); }, 300);
+      }
+    }, MS_PER_DIGIT);
+  }
+
+  // ── RECALL ────────────────────────────────────────────────────────────────
+  else if (p === 'recall') {
+    const seqLen = state.sequence.length;
+    let sec = 10; // 10 seconds to input
+    s.innerHTML = `
+      <div class="phase-label">Trial ${state.trial + 1} of 7 — recall</div>
+      <h2>Enter the sequence</h2>
+      <p style="font-size:13px;color:#9a9a94;">Type the ${seqLen} digits in order.</p>
+      <input type="text" id="resp" placeholder="${'_'.repeat(seqLen)}" maxlength="${seqLen}" autocomplete="off" inputmode="numeric" />
+      <div class="char-hint" id="charhint">0 / ${seqLen}</div>
+      <div class="timer-label" id="rtlabel">${sec}s remaining</div>
+      <div class="timer-bar-wrap"><div class="timer-bar" id="rtbar" style="width:100%"></div></div>
+      <button class="btn btn-primary" style="margin-top:0.75rem" onclick="submitRecall()">Submit</button>
+    `;
+    const inp = document.getElementById('resp');
+    inp.focus();
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '').slice(0, seqLen);
+      const h = document.getElementById('charhint');
+      if (h) { h.textContent = `${inp.value.length} / ${seqLen}`; h.style.color = inp.value.length === seqLen ? '#1a1a18' : ''; }
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') submitRecall(); });
+    state.timerInterval = setInterval(() => {
+      sec--;
+      const lbl = document.getElementById('rtlabel'), bar = document.getElementById('rtbar');
+      if (lbl) lbl.textContent = sec > 0 ? `${sec}s remaining` : 'Time!';
+      if (bar) bar.style.width = (sec / 10 * 100) + '%';
+      if (sec <= 0) { clearTimer(); submitRecall(); }
+    }, 1000);
+  }
+
+  // ── REINFORCEMENT ─────────────────────────────────────────────────────────
+  else if (p === 'reinforcement') {
+    const tNum = state.trial;
+    const isBlank = tNum <= 2 || state.group === 'D';
+    if (isBlank) {
+      s.innerHTML = `
+        <div class="phase-label">Trial ${tNum} of 7 — complete</div>
+        <h2>Trial complete</h2>
+        <p style="font-size:13px;color:#9a9a94;">Get ready for the next sequence.</p>
+        <button class="btn btn-primary" onclick="continueAfterReinforce()">Continue</button>
+      `;
+    } else {
+      const r = getReinforcement(state.group, state.lastN);
+      state.lastN = r.n;
+      s.innerHTML = `
+        <div class="phase-label">Trial ${tNum} of 7 — feedback</div>
+        <h2>Trial complete</h2>
+        <div class="reinforce-box ${r.cls}">${r.text}</div>
+        <button class="btn btn-primary" style="margin-top:0.5rem" onclick="continueAfterReinforce()">Continue</button>
+      `;
+    }
+  }
+
+  // ── QUALITATIVE ───────────────────────────────────────────────────────────
+  else if (p === 'qualitative') {
+    const confOpts = ['More confident', 'About the same', 'Less confident'];
+    const perfOpts = ['Very low', 'Low', 'Average', 'High', 'Very high'];
+
+    s.innerHTML = `
+      <div class="phase-label">Post-experiment review (optional)</div>
+      <h2>A few quick questions</h2>
+      <p style="font-size:13px;color:#9a9a94;">These are optional — answer as much or as little as you like.</p>
+
+      <div class="q-label">How did you feel at the moment when you saw each piece of feedback?</div>
+      <textarea id="q1" placeholder="Describe your reaction…" oninput="state.q1Text=this.value"></textarea>
+
+      <div class="q-label">After seeing the feedback, did you feel more or less confident going into the next trial?</div>
+      <div class="opt-row">
+        ${confOpts.map((o,i) => `<button class="opt-btn${state.q2Sel===i?' selected':''}" onclick="selQ(2,${i})">${o}</button>`).join('')}
+      </div>
+
+      <div class="q-label">What level of performance did you believe you were achieving during the task?</div>
+      <div class="opt-row">
+        ${perfOpts.map((o,i) => `<button class="opt-btn${state.q3Sel===i?' selected':''}" onclick="selQ(3,${i})">${o}</button>`).join('')}
+      </div>
+
+      <div class="q-label">How believable did the feedback feel?</div>
+      <div class="scale-row">
+        ${[1,2,3,4,5,6,7].map(n => `<button class="scale-btn${state.q4Sel===n?' selected':''}" onclick="selQ(4,${n})">${n}</button>`).join('')}
+      </div>
+      <div class="scale-ends"><span>Not at all believable</span><span>Completely believable</span></div>
+
+      <div class="q-label">Did you think the feedback accurately reflected your performance?</div>
+      <div class="scale-row">
+        ${[1,2,3,4,5,6,7].map(n => `<button class="scale-btn${state.q5Sel===n?' selected':''}" onclick="selQ(5,${n})">${n}</button>`).join('')}
+      </div>
+      <div class="scale-ends"><span>Not at all accurate</span><span>Completely accurate</span></div>
+
+      <div class="q-label">At any point, did you suspect the feedback was not accurate?</div>
+      <div class="opt-row">
+        <button class="opt-btn${state.q6Sel===0?' selected':''}" onclick="selQ(6,0)">Yes</button>
+        <button class="opt-btn${state.q6Sel===1?' selected':''}" onclick="selQ(6,1)">No</button>
+      </div>
+      <textarea id="q6text" placeholder="Optional: explain your suspicion…" oninput="state.q6Text=this.value"></textarea>
+
+      <div style="margin-top:1.25rem;display:flex;gap:10px;">
+        <button class="btn" onclick="state.phase='debrief';render()">Skip</button>
+        <button class="btn btn-primary" onclick="state.phase='debrief';render()">Done</button>
+      </div>
+    `;
+    const q1 = document.getElementById('q1');
+    if (q1 && state.q1Text) q1.value = state.q1Text;
+    const q6t = document.getElementById('q6text');
+    if (q6t && state.q6Text) q6t.value = state.q6Text;
+  }
+
+  // ── DEBRIEF ───────────────────────────────────────────────────────────────
+  else if (p === 'debrief') {
+    const res = state.results;
+    const total = res.reduce((a, r) => a + r.score, 0);
+    const grp = state.group;
+    const badgeCls = grp === 'A' ? 'badge-a' : grp === 'B' ? 'badge-b' : grp === 'C' ? 'badge-c' : 'badge-d';
+    const rows = res.map((r, i) =>
+      `<tr><td>T${i+1}</td><td style="font-family:'Courier New',monospace">${r.seq.join('')}</td><td style="font-family:'Courier New',monospace">${r.resp.join('') || '—'}</td><td>${r.score}</td></tr>`
+    ).join('');
+
+    const confLabels = ['More confident', 'About the same', 'Less confident'];
+    const perfLabels = ['Very low', 'Low', 'Average', 'High', 'Very high'];
+
+    const hasQual = state.q1Text || state.q2Sel !== null || state.q3Sel !== null ||
+                    state.q4Sel !== null || state.q5Sel !== null || state.q6Sel !== null;
+    const qualBlock = hasQual ? `
+      <div class="divider"></div>
+      <p style="font-size:13px;font-weight:500;color:#1a1a18;margin-bottom:0.5rem;">Your responses</p>
+      ${state.q1Text         ? `<p style="font-size:13px;color:#5a5a56;margin-bottom:0.4rem;"><span style="font-weight:500">Reaction to feedback:</span> ${state.q1Text}</p>` : ''}
+      ${state.q2Sel !== null  ? `<p style="font-size:13px;color:#5a5a56;margin-bottom:0.4rem;"><span style="font-weight:500">Confidence change:</span> ${confLabels[state.q2Sel]}</p>` : ''}
+      ${state.q3Sel !== null  ? `<p style="font-size:13px;color:#5a5a56;margin-bottom:0.4rem;"><span style="font-weight:500">Perceived performance:</span> ${perfLabels[state.q3Sel]}</p>` : ''}
+      ${state.q4Sel !== null  ? `<p style="font-size:13px;color:#5a5a56;margin-bottom:0.4rem;"><span style="font-weight:500">Feedback believability:</span> ${state.q4Sel} / 7</p>` : ''}
+      ${state.q5Sel !== null  ? `<p style="font-size:13px;color:#5a5a56;margin-bottom:0.4rem;"><span style="font-weight:500">Feedback accuracy (perceived):</span> ${state.q5Sel} / 7</p>` : ''}
+      ${state.q6Sel !== null  ? `<p style="font-size:13px;color:#5a5a56;margin-bottom:0.4rem;"><span style="font-weight:500">Suspected inaccuracy:</span> ${state.q6Sel === 0 ? 'Yes' : 'No'}${state.q6Text ? ' — ' + state.q6Text : ''}</p>` : ''}
+    ` : '';
+
+    s.innerHTML = `
+      <div class="phase-label">Debriefing</div>
+      <h2>About this experiment</h2>
+      <p>This study examined how <span style="font-weight:500;color:#1a1a18">performance feedback</span> affects working memory scores, perceived confidence, and task engagement. After trials 1–2 (no feedback), you were randomly assigned to one of three feedback groups that provided varying social comparison information.</p>
+      <p>The percentile feedback was <span style="font-weight:500;color:#1a1a18">pre-determined by group assignment</span> and did not reflect your actual performance. The goal was to test whether positive, neutral, or negative reinforcement influences subsequent recall.</p>
+      <div class="divider"></div>
+      <div class="summary-row">
+        <div class="chip"><div class="val">${grp}</div><div class="lbl">Your group</div></div>
+        <div class="chip"><div class="val">${total}</div><div class="lbl">Total score</div></div>
+        <div class="chip"><div class="val">${res.length}</div><div class="lbl">Trials</div></div>
+      </div>
+      <span class="group-badge ${badgeCls}">${GROUP_NAMES[grp]}</span>
+      <p style="font-size:13px;color:#5a5a56;margin-bottom:0.75rem;">${
+        grp === 'A' ? 'You were shown <strong>below average</strong> feedback (45–60th percentile range).' :
+        grp === 'B' ? 'You were shown <strong>average</strong> feedback (65–80th percentile range).' :
+        grp === 'C' ? 'You were shown <strong>above average</strong> feedback (85–95th percentile range).' :
+                     'You were given <strong>no feedback</strong> throughout all seven trials.'
+      }</p>
+      <table class="score-table">
+        <thead><tr><th>Trial</th><th>Sequence</th><th>Response</th><th>Score</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="font-size:12px;color:#9a9a94;margin-top:0.75rem;">Score = longest run of digits that matches a contiguous part of the original sequence, anywhere in your response.</p>
+      ${qualBlock}
+      <div class="divider"></div>
+      <p style="font-size:13px;color:#5a5a56;">To contribute your data to the study, please copy your results and submit them via the anonymous form.</p>
+      <div style="display:flex;gap:10px;margin-top:0.5rem;flex-wrap:wrap;align-items:center;">
+        <button class="btn" onclick="copyResults()">Copy results</button>
+        <button class="btn btn-primary" onclick="restart()">Run another session</button>
+      </div>
+      <p id="copy-confirm" style="font-size:12px;color:#3b6d11;margin-top:0.5rem;min-height:16px;"></p>
+    `;
+  }
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+function doBegin() { state.group = randomGroup(); state.phase = 'instruction'; render(); }
+function startNextTrial() { state.sequence = genSequence(); state.phase = 'memorize'; render(); }
+
+function submitRecall() {
+  clearTimer();
+  const inp = document.getElementById('resp');
+  const digits = (inp ? inp.value.replace(/\D/g, '') : '').split('');
+  const score = longestContiguous(state.sequence, digits);
+  state.results.push({ score, seq: state.sequence.slice(), resp: digits });
+  state.trial++;
+  state.phase = 'reinforcement';
+  render();
+}
+
+function continueAfterReinforce() {
+  if (state.trial < 7) { startNextTrial(); }
+  else if (state.group === 'D') { state.phase = 'debrief'; render(); }
+  else { state.phase = 'qualitative'; render(); }
+}
+
+function selQ(qNum, val) {
+  if (qNum === 2) state.q2Sel = val;
+  else if (qNum === 3) state.q3Sel = val;
+  else if (qNum === 4) state.q4Sel = val;
+  else if (qNum === 5) state.q5Sel = val;
+  else if (qNum === 6) state.q6Sel = val;
+  render();
+}
+
+function copyResults() {
+  const res = state.results;
+  const confLabels = ['More confident', 'About the same', 'Less confident'];
+  const perfLabels = ['Very low', 'Low', 'Average', 'High', 'Very high'];
+  const lines = [
+    `Group: ${state.group}`,
+    `Total score: ${res.reduce((a, r) => a + r.score, 0)}`,
+    ...res.map((r, i) => `T${i+1} = ${r.score} | seq: ${r.seq.join('')} | resp: ${r.resp.join('') || '—'}`),
+    state.q1Text        ? `Reaction to feedback: ${state.q1Text}` : '',
+    state.q2Sel !== null ? `Confidence change: ${confLabels[state.q2Sel]}` : '',
+    state.q3Sel !== null ? `Perceived performance: ${perfLabels[state.q3Sel]}` : '',
+    state.q4Sel !== null ? `Feedback believability: ${state.q4Sel}/7` : '',
+    state.q5Sel !== null ? `Feedback accuracy (perceived): ${state.q5Sel}/7` : '',
+    state.q6Sel !== null ? `Suspected inaccuracy: ${state.q6Sel === 0 ? 'Yes' : 'No'}${state.q6Text ? ' — ' + state.q6Text : ''}` : ''
+  ].filter(Boolean).join('\n');
+  navigator.clipboard.writeText(lines).then(() => {
+    const c = document.getElementById('copy-confirm');
+    if (c) { c.textContent = 'Results copied to clipboard.'; setTimeout(() => { if (c) c.textContent = ''; }, 3000); }
+  });
+}
+
+function restart() {
+  clearTimer();
+  state = {
+    phase: 'menu', group: null, trial: 0, sequence: [], results: [],
+    timerInterval: null, digitIdx: 0, lastN: null,
+    q1Text: '', q2Sel: null, q3Sel: null, q4Sel: null, q5Sel: null, q6Sel: null, q6Text: ''
+  };
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
