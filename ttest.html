@@ -1,0 +1,11 @@
+import scipy.stats as stats
+
+# Example data, put your true values here
+group_1 = [1, 3, 5]   # n = 3
+group_2 = [1, 3, 5, 7, 9]  # n = 5
+
+# Perform Welch's t-test (equal_var=False)
+t_stat, p_value = stats.ttest_ind(group_1, group_2, equal_var=False)
+
+print(f"Welch's t-statistic: {t_stat:.4f}")
+print(f"p-value: {p_value:.4f}")
